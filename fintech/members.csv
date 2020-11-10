@@ -1,1 +1,9 @@
-
+﻿MEMBER_ID;COUNTRY_CODE;COMPANY_NAME;FULL_NAME;CITIZENSHIP_COUNTRY;MEMBER_TYPE
+52;SG;NULL;Jamie Yeo;SG;investor
+51;SG;NULL;Desmond Chua;SG;investor
+23;ID;NULL;Peter Ong;US;investor
+24;ID;NULL;Derrick Low;MY;investor
+63;MY;NULL;Fany Wong;MY;investor
+21;SG;Good books pte ltd;NULL;NULL;borrower
+74;SG;Apple inc;NULL;NULL;borrower 
+93;SG;Fruit pte ltd;NULL;NULL;borrower
