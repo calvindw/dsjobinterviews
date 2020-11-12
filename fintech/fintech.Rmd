@@ -105,11 +105,13 @@ GROUP BY COUNTRY_CODE"
 ```{r}
 
 sqldf("
-select count(members.CITIZENSHIP_COUNTRY) as investors_count
+select 
+members.CITIZENSHIP_COUNTRY,
+count(members.CITIZENSHIP_COUNTRY) as investors_count
 from loans
 left join members 
         on members.MEMBER_ID = loans.MEMBER_ID
-where loans.LOAN_ID = '9493'
+where loans.LOAN_ID = '9391'
 group by members.CITIZENSHIP_COUNTRY
       ")
 ```
