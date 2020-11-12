@@ -2,6 +2,9 @@
 title: "Fintech Lead Data Analyst SQL Test"
 author: "Calvin de Wilde (Sidjaya)"
 date: "August 2020"
+output:
+  word_document: default
+  pdf_document: default
 ---
 
 
@@ -151,11 +154,30 @@ sqldf("
         LOAN_ID,
         sum(investments.'AMOUNT (USD)') as sum_amount
       from investments
-      where (INVESTMENT_DATE > '2018-01-01' & 
-              INVESTMENT_DATE < '2018-12-31')
+      where (INVESTMENT_DATE >= '2018-01-01' and 
+              INVESTMENT_DATE <= '2018-12-31')
       group by LOAN_ID
       having sum_amount > 10000
       ")
+
+
+```
+
+alternative version, using between
+
+
+```{r}
+sqldf("
+      select 
+        LOAN_ID,
+        sum(investments.'AMOUNT (USD)') as sum_amount
+      from investments
+      where INVESTMENT_DATE between '2018-01-01' and '2018-12-31'
+      group by LOAN_ID
+      having sum_amount > 10000
+      ")
+
+
 ```
 
 ### 6. Find the top 10 largest loans in terms of amount raised in 2017 per country. Do not use UNION as we do not want to query the table multiple times.
