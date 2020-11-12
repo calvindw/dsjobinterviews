@@ -1,0 +1,234 @@
+---
+title: "Fintech Lead Data Analyst SQL Test"
+author: "Calvin de Wilde (Sidjaya)"
+date: "August 2020"
+output: "github_document"
+---
+
+
+```{r setup, include=TRUE}
+knitr::opts_chunk$set(echo = TRUE)
+library(knitr)
+library(readr)
+library(sqldf)
+
+options(scipen=999)
+
+```
+
+## The Tables
+
+Table name: members
+
+Description: Member ID and information. Contains information for both investor and borrower, which is flagged in the member_type column
+
+
+```{r, include =FALSE}
+members <- read_delim("https://raw.githubusercontent.com/calvindw/dsjobinterviews/main/fintech/members.csv", 
+    ";", escape_double = FALSE, trim_ws = TRUE)
+
+
+```
+
+Primary_key = member_id
+
+```{r}
+members
+```
+
+Table name: loans
+
+Description: Shows the loans and corresponding borrower (member_id) who took the loan. Each loan can only have 1 borrower
+
+```{r, include=FALSE}
+loans <- read_delim("https://raw.githubusercontent.com/calvindw/dsjobinterviews/main/fintech/loans.csv", 
+    ";", escape_double = FALSE, trim_ws = TRUE)
+```
+
+primary_key = loan_id
+
+foreign_key = member_id >> members.member_id
+
+```{r}
+loans
+```
+
+Table name: investments
+
+Description: Shows loan details along with the investors that invested in the loan. Summing the amount will give you the total amount raised for each loan.
+
+foreign_key = member_id >> members.member_id
+
+foreign_key = loan_id >> loans.loan_id
+
+
+```{r, include=FALSE}
+investments <- read_delim("https://raw.githubusercontent.com/calvindw/dsjobinterviews/main/fintech/investments.csv", 
+    ";", escape_double = FALSE, col_types = cols(LOAN_ID = col_character(), 
+        MEMBER_ID = col_character(), INVESTMENT_DATE = col_datetime(format = "%d-%m-%Y %H:%M")), 
+    trim_ws = TRUE)
+
+investments$INVESTMENT_DATE <- as.character(investments$INVESTMENT_DATE)
+
+
+```
+
+
+```{r}
+investments
+```
+## SQL Questions
+
+### 1. For each available loan_id, get the corresponding company name.
+
+```{r}
+sqldf(" 
+SELECT LOAN_ID, COMPANY_NAME  
+FROM loans LEFT JOIN members
+ON loans.MEMBER_ID = members.MEMBER_ID")
+
+
+```
+
+### 2. Find out how many borrowers we have per country
+```{r}
+sqldf("
+SELECT COUNTRY_CODE, count(MEMBER_TYPE) AS n_count
+FROM members
+WHERE (MEMBER_TYPE='borrower')
+GROUP BY COUNTRY_CODE"
+)
+
+```
+
+### 3. Find out how many investors per CITIZENSHIP_COUNTRY invested in loan 9391
+
+```{r}
+
+sqldf("
+select 
+members.CITIZENSHIP_COUNTRY,
+count(members.CITIZENSHIP_COUNTRY) as investors_count
+from loans
+left join members 
+        on members.MEMBER_ID = loans.MEMBER_ID
+where loans.LOAN_ID = '9391'
+group by members.CITIZENSHIP_COUNTRY
+      ")
+```
+
+
+### 4. Find out the total amount invested and number of investors who participated in at least loan in each month per year, for loans originating in SG (i.e. loans by SG borrowers)
+
+```{r}
+
+sqldf("
+with 
+  members_filtered AS(
+                      select MEMBER_ID,CITIZENSHIP_COUNTRY
+                      from members
+                      where (members.MEMBER_TYPE = 'borrower' AND members.COUNTRY_CODE = 'SG')
+                      )
+
+select 
+  strftime('%Y', INVESTMENT_DATE) as year,
+  strftime('%m', INVESTMENT_DATE) as month,
+  count(members_filtered.MEMBER_ID) as n_investor
+from members_filtered
+left join  investments 
+    on investments.MEMBER_ID = members_filtered.MEMBER_ID
+group by year, month
+having n_investor >= 1
+      ")
+
+```
+
+### 5. Find out which loan(s) raised more than USD10,000 in 2018.
+
+
+```{r}
+sqldf("
+      select 
+        LOAN_ID,
+        sum(investments.'AMOUNT (USD)') as sum_amount
+      from investments
+      where (INVESTMENT_DATE >= '2018-01-01' and 
+              INVESTMENT_DATE <= '2018-12-31')
+      group by LOAN_ID
+      having sum_amount > 10000
+      ")
+
+
+```
+
+alternative version, using between
+
+
+```{r}
+sqldf("
+      select 
+        LOAN_ID,
+        sum(investments.'AMOUNT (USD)') as sum_amount
+      from investments
+      where INVESTMENT_DATE between '2018-01-01' and '2018-12-31'
+      group by LOAN_ID
+      having sum_amount > 10000
+      ")
+
+
+```
+
+### 6. Find the top 10 largest loans in terms of amount raised in 2017 per country. Do not use UNION as we do not want to query the table multiple times.
+
+
+```{r}
+#you can use where between to filter the date too, see solution   #5
+
+sqldf("
+with  cte as (select 
+                LOAN_ID,
+                COUNTRY_CODE,
+                sum(investments.'AMOUNT (USD)') as sum_amount
+              from investments
+              left join members
+                on investments.MEMBER_ID=members.MEMBER_ID
+              where (INVESTMENT_DATE >= '2017-01-01' AND 
+                     INVESTMENT_DATE <= '2017-12-31')
+              group by LOAN_ID, COUNTRY_CODE)
+              
+
+select 
+COUNTRY_CODE,
+LOAN_ID,
+rank () over (partition by COUNTRY_CODE order by -sum_amount) as loan_ranking_by_country,
+sum_amount
+from cte
+              
+      ")
+
+
+```
+
+
+## Oral questions
+
+After passing the first round interview I was interviewed by the company's lead analyst related to my knowledge on the business acumen. I thought I was doing a good job until he suddenly asked me to answer another SQL questions. There were 3 of them, but I could only share two as the last one was doing a live full join. 
+
+### 1.What are the different types of joins? 
+
+left, right, inner, full, cross join. I forgot cross join since I never used it.
+
+### 2. What's the difference between RANK, DENSE_RANK, and ROW_NUMBER?
+
+this [answer](https://stackoverflow.com/questions/11183572/whats-the-difference-between-rank-and-dense-rank-functions-in-oracle) and this [answer](https://stackoverflow.com/questions/7747327/sql-rank-versus-row-number) from SO give a good definition:
+
+RANK: RANK gives you the ranking within your ordered partition. Ties are assigned the same rank, with the next ranking(s) skipped. So, if you have 3 items at rank 2, the next rank listed would be ranked 5
+
+DENSE_RANK again gives you the ranking within your ordered partition, but the ranks are consecutive. No ranks are skipped if there are ranks with multiple items.
+
+ROW_NUMBER: Returns a unique number for each row starting with 1. For rows that have duplicate values,numbers are arbitarily assigned.
+
+
+### 3. Which join I need to use when I want to show the sum of transactions between two tables? Let's say table for transactions in January and February, both of them have unique user_id and transaction column.
+
+For this situation, use full join, followed by group by and select statement
