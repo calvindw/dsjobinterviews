@@ -184,7 +184,7 @@ sqldf("
 
 
 ```{r}
-
+#you can use where between to filter the date too, see solution  #5
 
 sqldf("
 with  cte as (select 
@@ -194,8 +194,8 @@ with  cte as (select
               from investments
               left join members
                 on investments.MEMBER_ID=members.MEMBER_ID
-              where (INVESTMENT_DATE > '2017-01-01' AND 
-                     INVESTMENT_DATE < '2017-12-31')
+              where (INVESTMENT_DATE >= '2017-01-01' AND 
+                     INVESTMENT_DATE =< '2017-12-31')
               group by LOAN_ID, COUNTRY_CODE)
               
 
