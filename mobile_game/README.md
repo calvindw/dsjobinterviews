@@ -797,3 +797,20 @@ and how much revenue stream we could get from selling those products. It
 is possible that some of the least sold items may bring a considerable
 revenue if they have a higher price margin even if they are sold less,
 however there is a lack of data to support this statement.
+
+### 4\. Oral questions
+
+The following questions are the oral questions that I could still recall
+based on the second interview.
+
+  - What do you do on day to day basis?
+  - How’s your data stored?"
+  - What are your data structures looked like?
+  - How many rows are you dealing with?"
+  - What tools do you use to make your pipelines?"
+  - Are you familiar with cloud based servers (aws/azure/gcp)?"
+  - Do you have an experience of automating data cleaning using SQL and
+    store it into data warehouse?"
+  - What are the outputs that you present to your clients?"
+  - How do you communicate the result?"
+  - what kind of machine learning techniques you have learned?"
