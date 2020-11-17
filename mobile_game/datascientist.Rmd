@@ -3,8 +3,6 @@ title: "Mobile Video Game Company Data Scientist Test"
 author: "Calvin de Wilde (Sidjaya)"
 date: "July 2020"
 output: "github_document"
-  
-  
 
 ---
 
@@ -527,3 +525,21 @@ The bread shop data shows what items are considered as risk averse items: the to
 
 Lastly, this data does not show the whole picture. While we could get an insight which items are most likely to sell among customers, we don't have any information regarding the selling price of those said products, and how much revenue stream we could get from selling those
 products. It is possible that some of the least sold items may bring a considerable revenue if they have a higher price margin even if they are sold less, however there is a lack of data to support this statement.
+
+### 4. Oral questions
+
+The following questions are the oral questions that I could still recall based on the second interview.
+
+* What do you do on day to day basis?
+* How's your data stored?"
+* What are your data structures looked like?
+* How many rows are you dealing with?"
+* What tools do you use to make your pipelines?"
+* Are you familiar with cloud based servers (aws/azure/gcp)?"
+* Do you have an experience of automating data cleaning using SQL and store it into data warehouse?"
+* What are the outputs that you present to your  clients?"
+*  How do you communicate the result?" 
+* what kind of machine learning techniques you have learned?" 
+
+
+
