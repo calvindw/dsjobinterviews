@@ -1,0 +1,529 @@
+---
+title: "Mobile Video Game Company Data Scientist Test"
+author: "Calvin de Wilde (Sidjaya)"
+date: "July 2020"
+output: "github_document"
+  
+  
+
+---
+
+### Context
+
+In July 2020, I was approached by a tech recruiter for a Data Scientist position at a mobile video gaming company. I passed the following technical test. You may notice some of the english sentences may be a bit odd and gramatically incorrect. I decided to preserve any grammatical errors to let you decide what the questions really want to answer.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(sqldf)
+library(tidyverse)
+library(janitor)
+library(lubridate)
+library(scales)
+```
+
+### 1.  SQL Questions
+
+#### Table Downloads
+
+```{r}
+downloads <- data.frame(
+  stringsAsFactors = FALSE,
+              Date = c("2019-09-16","2019-09-16",
+                       "2019-09-16","2019-09-17","2019-09-17","2019-09-17",
+                       "2019-09-18","2019-09-18","2019-09-18","2019-09-19",
+                       "2019-09-19","2019-09-19"),
+           Country = c("US","UK","DE","US","UK",
+                       "DE","US","UK","DE","US","UK","DE"),
+          Download = c(12000,13000,13500,12000,
+                       14000,50000,14000,35000,8000,100000,5000,
+                       10000)
+)
+
+downloads$Date <- as.Date(downloads$Date, "%Y-%m-%d")
+downloads
+```
+
+```{r}
+revenue <- data.frame(
+  stringsAsFactors = FALSE,
+       check.names = FALSE,
+                         Date = c("2019-09-16","2019-09-16","2019-09-16","2019-09-17",
+                                  "2019-09-17","2019-09-17","2019-09-18",
+                                  "2019-09-18","2019-09-18","2019-09-19",
+                                  "2019-09-19","2019-09-19"),
+                      Country = c("US",
+                                  "UK","DE","US","UK","DE","US","UK","DE",
+                                  "US","UK","DE"),
+                 `Revenue($)` = c(1000,
+                                  900,1200,4000,1400,3000,500,7000,
+                                  600,10000,400,1590)
+           )
+
+revenue$Date <- as.Date(revenue$Date, "%Y-%m-%d")
+
+revenue
+```
+
+
+From those following tables, please create a view table in sql for :
+
+#### a.	Display date and country where its have maximum download
+```{r}
+
+sqldf("
+     SELECT Date,Country, MAX(Download) 
+     FROM downloads 
+     GROUP BY Country
+      ")
+```
+
+
+#### b.	Display date and country where its have minimum revenue
+
+```{r}
+
+sqldf("
+     SELECT Date,Country, MIN(Download) 
+     FROM downloads 
+     GROUP BY Country
+      ")
+```
+
+#### c.	Display  all date,country,download and revenue
+
+Basically create a unique key column on each table based on date and country column, the catch is, I am not sure why the resulting key column ended up like that
+
+```{r}
+
+
+sqldf("
+
+with 
+
+cte_downloads as (
+select Date, Country,Download, Date, strftime('%Y-%m-%d',Date)||'-'||country as key
+      from downloads),
+      
+cte_revenue as(
+select Date, Country, revenue.'Revenue($)' as revenue, Date, strftime('%Y-%m-%d',Date)||'-'||country as key
+from revenue)
+
+select cte_downloads.Date as Date,
+cte_downloads.Country as Country,
+cte_downloads.Download as Download,
+cte_revenue.revenue as Revenue
+from cte_downloads       
+  left join cte_revenue
+        on cte_downloads.key = cte_revenue.key 
+      
+      ")
+  
+```
+
+#### d.	Drop date and country where its have maximum revenue
+
+The statement function MAX() at the select statement will display the maximum value of revenue based on country, we will filter it with where clause
+
+```{r}
+
+sqldf("
+with cte as (
+        SELECT Date, 
+        Country, 
+        revenue.'Revenue($)' as Revenue, 
+        MAX(revenue.'Revenue($)') OVER (PARTITION BY Country) AS max_value
+        from revenue)
+
+select Date, Country, Revenue
+from cte
+WHERE NOT(Revenue = max_value)
+      ")
+
+```
+
+Another method: create a ranking and filter the row with the highest rank
+
+```{r}
+sqldf("
+
+with cte as(
+            SELECT Date, 
+            Country, 
+            revenue.'Revenue($)' as Revenue, 
+            DENSE_RANK() OVER (PARTITION BY Country ORDER BY -revenue.'Revenue($)') AS ranking
+            FROM revenue)
+
+SELECT *
+FROM cte
+WHERE (NOT(ranking IN (1.0)))
+      ")
+
+```
+
+#### e.	Drop date and country where its have minimum download
+
+The solution is similar with the previous question, just replace MAX with MIN 
+```{r}
+
+sqldf("
+with cte as (
+        SELECT Date, 
+        Country, 
+        revenue.'Revenue($)' as Revenue, 
+        MIN(revenue.'Revenue($)') OVER (PARTITION BY Country) AS min_value
+        from revenue)
+
+select Date, Country, Revenue
+from cte
+WHERE NOT(Revenue = min_value)
+      ")
+```
+
+#### f. Update date and country download value where its have maximum value to 99999
+
+
+
+```{r}
+sqldf("
+      select 
+      
+        Date, 
+        Country, 
+      
+        case when
+        (Download = max(Download) over (partition by Country)) then (99999)
+        when true then (Download)
+          end as Download
+      
+      from downloads
+      
+      ")
+
+
+```
+
+#### g.	Update date and country revenue value where its have minimum value to 0
+
+```{r}
+
+sqldf("
+      select 
+      
+        Date, 
+        Country, 
+      
+        case when
+        (revenue.'Revenue($)' = min(revenue.'Revenue($)') over (partition by Country)) then (0)
+        when true then (revenue.'Revenue($)')
+          end as Revenue
+      
+      from revenue
+      
+      ")
+
+
+```
+h.	Merge table in point f and g
+
+```{r}
+sqldf("
+with 
+
+cte_download as
+(
+select 
+      
+        Date, 
+        Country, 
+      
+        case when
+        (Download = max(Download) over (partition by Country)) then (99999)
+        when true then (Download)
+          end as Download,
+        
+        strftime('%Y-%m-%d',Date)||'-'|| Country as key
+      
+      from downloads),
+
+cte_revenue as
+(select 
+      
+        Date, 
+        Country, 
+      
+        case when
+        (revenue.'Revenue($)' = min(revenue.'Revenue($)') over (partition by Country)) then (0)
+        when true then (revenue.'Revenue($)')
+          end as Revenue,
+        
+        strftime('%Y-%m-%d',Date)||'-'|| Country as key
+      
+      from revenue)
+
+
+select cte_download.Date, cte_download.Country, cte_download.Download, cte_revenue.Revenue
+
+from cte_download
+left join cte_revenue on 
+  cte_download.key = cte_revenue.key
+
+
+
+")
+```
+
+### 2.	These tables explain download results on each marketing channel
+
+```{r}
+channel_a <- data.frame(
+        Date = c("2019-09-16","2019-09-17","2019-09-18",
+                 "2019-09-19","2019-09-20","2019-09-21","2019-09-22",
+                 "2019-09-23","2019-09-24","2019-09-25","2019-09-26"),
+    Download = c(12000,13500,14000,15000,15000,
+                 10000,20000,5000,45000,60000,12000)
+)
+channel_a$Date <- as.Date(channel_a$Date, "%Y-%m-%d")
+
+channel_a
+```
+
+
+```{r}
+channel_b <- data.frame(
+        Date = c("2019-09-16","2019-09-17","2019-09-18",
+                 "2019-09-19","2019-09-20","2019-09-21","2019-09-22",
+                 "2019-09-23","2019-09-24","2019-09-25","2019-09-26"),
+    Download = c(13000,14500,14000,15000,17000,
+                 19000,30000,1000,15000,50000,10000)
+)
+channel_b$Date <- as.Date(channel_b$Date, "%Y-%m-%d")
+
+channel_b
+```
+
+
+
+
+### From those following, which channel should be used for marketing channel in the future? Please explain your answer/choice
+
+First let's tidy the data
+
+```{r}
+#tidy the data
+channel_a <- channel_a %>% rename(date=Date,channel_a=Download)
+channel_b <- channel_b %>% rename(date=Date,channel_b=Download)
+
+channel_a <- channel_a %>% pivot_longer(cols=2, names_to="channel", values_to="downloads")
+
+channel_b <- channel_b %>% pivot_longer(cols=2, names_to="channel", values_to="downloads")
+
+df <- rbind(channel_a,channel_b)
+
+df
+
+```
+
+The data is now tidy, first let's make a bar chart to visualize the traffic
+
+```{r}
+#stacked bar chart to see trends
+v <- df %>% ggplot(aes(x=date,y=downloads,fill=channel)) + 
+  geom_bar(stat="identity",position = position_dodge(width=0.9)) 
+v
+```
+
+Based on chart above at first glance it seems Channel A is outperforming channel B.
+
+Let's look at some basic statistics:
+
+```{r}
+
+#Compute summary statistics by groups - count, mean, sd:
+df %>% group_by(channel) %>%
+  summarise(
+    count = n(),
+    mean = mean(downloads, na.rm = TRUE),
+    sd = sd(downloads, na.rm = TRUE),
+    sum = sum(downloads,na.rm=TRUE))
+
+
+```
+
+Based on the data, channel a has a total downloads of 221,500 and channel b has a total downloads of 198,500. The average download and standard deviation of both channels show that channel a clearly has more traffic. We may conclude that channel a is more reliable as it has *a higher average traffic*.
+
+
+However, to conclude whether channel a has a better performance than channel b, I will use ANOVA test (analysis of variance) a statistical test that can be used to check whether two groups have a significant difference between their average or not.
+
+
+```{r}
+#normality test as the number of data is less than 50 for each group
+
+with(df, shapiro.test(downloads[channel == "channel_a"]))# p = 0.00069
+with(df, shapiro.test(downloads[channel == "channel_b"]))# p = 0.01201
+
+```
+
+The shapiro test gives a result of p value less than 0.05, so we can assume the normality.
+
+Next, we will do the ANOVA test:
+
+```{r}
+# q: is the mean significant?
+# Compute the analysis of variance
+res.aov <- aov(downloads ~ channel, data = df)
+summary(res.aov) #result is 0.744
+```
+
+Based on the ANOVA we got a result of p value of 0.744 which indicates that the average downloads of Channel A and channel B does not have a significant difference. *There is a lack of proof that either channel outperforms or underperform each other*, therefore, either of the channel is more than likely to have a similar performance as a marketing channel in the future.
+
+
+### 3.	If you given a task to increase revenue in mobile games, what data or variables that you would need to solve the problem ? Please explain 
+
+At very least we need to have these variables:
+
+* Ads Impressions. To determine how many ads were served to the user.
+
+* Clicks. To determine whether those impressions are good enough to make people click
+the ads.
+
+* Purchase. To determine whether a user buys the offered product or not.
+To make robust analysis, these demographic variables (ideally) should be available as well:
+
+* Disposable income level. To measure whether a user has enough disposable income to
+purchase a digital product offered by the video game.
+
+* Age. Older people more likely to pay for a digital service as they have disposable income.
+This could serve as a proxy variable when disposable income level is not available.
+
+* Gender. It is important to distinguish to differentiate advertised products between
+either gender.
+
+* Education. Some studies associated video game addiction as another addiction equal to gambling's addiction. If there is a correlation between the level of education and addiction, we may be able to exploit this to increase purchase to those who are prone to video game addictions. One of the most successful example of mobile gaming revenue is Gacha system which is used by Sony's Fate Grand Order where people are willing to pay to gamble their luck so they can get a rare character.
+
+Using those data, we may be able to make a prediction of how much revenue is increased if we target our ads serving to the right audience, and reducing the ads to people who are less likely to pay for the service, and it will optimize the average revenue per user.
+
+### R Questions
+
+#### Please look in the bread data csv. The data contain about bread transaction information. Suppose, I want to open bread shop, using the bread data, what suggestion that you would give? Please use R for data manipulation and data visualization.
+
+
+```{r}
+df <- read_csv("https://raw.githubusercontent.com/calvindw/dsjobinterviews/main/mobile_game/BreadBasket_DMS.csv", 
+    col_types = cols(Date = col_date(format = "%Y-%m-%d"), 
+        Time = col_time(format = "%H:%M:%S")))
+
+
+df <- df %>% clean_names()
+df <- df %>% mutate(item = as_factor(item),
+                    transaction = as_factor(transaction))
+
+df <- df %>% filter(item != "NONE")
+
+df %>% head(10) 
+```
+
+```{r}
+#which items are popular?
+df_item <- df %>% 
+  group_by(item) %>% 
+  count(item) %>% 
+  arrange(desc(n))  %>% ungroup()
+
+df_item <- df_item %>%  mutate(ranking = rank(-n)) %>% 
+  filter(ranking <=10) 
+
+df_item %>% group_by(item) %>% mutate(pct = n/15008)
+
+df_item %>%  
+  ggplot(aes(x=reorder(item,ranking),y=n)) + 
+  geom_bar(stat = "identity") +
+  labs(title="Top ten most purchased items")+
+  ylab("Items purchased")+
+  xlab("Number of purchases")+
+  theme_minimal()
+
+```
+
+Based on the aggregation, Coffee, Bread, Tea are the top three purchased items.
+
+```{r}
+
+#group by unique transaction (unique customer)
+df_ag <- df %>% group_by(transaction) %>% count(transaction) %>%  ungroup() 
+
+mean(df_ag$n) 
+
+#let's order the number of transaction based on customer purchase
+df_transaction <- df_ag %>% 
+  select(-transaction) %>% 
+  mutate(n = as_factor(n)) %>% 
+  count(n, name="purchase_times") %>% 
+  mutate(pct = purchase_times/sum(purchase_times))
+
+df_transaction %>% ggplot(aes(x=n,y=purchase_times)) + 
+  geom_bar(stat = "identity")+
+  labs(title="Number of Purchase per Unique Customer")+
+  ylab("Number of Unique Customers")+
+  xlab("Number of Purchase")+
+  theme_minimal()
+
+
+```
+
+Based on the data provided, there is 9684 unique transactions occurred from 2016-10-30 to 2017-04-29. The mean is 2. It means the average purchase per every unique customer is 2 this can be used as a threshold of how many items every unique customer purchased.
+
+
+Now let's see which period has the most transaction?
+
+```{r}
+
+
+df_month <- df %>% group_by(month=floor_date(x=date, unit="month")) %>% count
+
+df_month %>% ggplot(aes(x=month,y=n)) + 
+  geom_bar(stat = "identity") +
+  labs(title="Number of transactions per month")+
+  ylab("Items purchased")+
+  xlab("Month")+
+  scale_x_date(date_breaks = "1 month", 
+               labels=date_format("%b-%Y"))+
+  theme_minimal()
+```
+ 
+November 2016 seems the month with the highest purchase. Let's see the top items purchased in that month.
+
+```{r}
+period <- interval("2016-11-01", "2016-11-30")
+df_peak <- df %>% filter(date %within% period)
+
+df_peak %>% select(-transaction) %>% 
+  group_by(item) %>% count(item) %>% arrange(desc(n)) %>% ungroup()
+```
+
+Coffee, Bread, Tea are the top three purchased items in November.
+
+
+**Conclusion**
+
+As there is no price data of each item provided, we can get a following insight:
+
+
+*Which items are considered as the best selling items and which ones had low sales*
+
+This will reduce the risks associated with selling the said products as there is a likely hood customer will purchase those products due to the familiarity. As there were too many data to be displayed in a visualization, this visualization will only display the top ten: it appears coffee, bread, and tea are the top three most purchased items.
+
+
+*How many average transactions were made by every unique customer. *
+
+This is to manage of our expectation as we could not expect a customer to purchase more than the typical number of purchases. Based on the transaction data, the maximum items purchased by a customer was 11 (which only occurred 4 times). 68% of the customer would buy 2 or less. The top three items of the shop are Coffee, Bread, Tea. 
+
+Based on the data, we have an information that the bread shop had a peak purchase in November, declined in December and January and slowly bouncing back in February.
+
+
+**Recommendations**
+
+The bread shop data shows what items are considered as risk averse items: the top ten most purchased items are coffee, bread, tea, cake, pastry, sandwich, medialuna, hot chocolate, cookies, and brownie. Based on the data, 4 items (coffee, bread, tea, cake, and pastry) made up 74% of the total transactions. As those items are the most purchased product, I would recommend increasing the availability, variety, and quality of those said products as it will increase the likelihood of repeated purchase among the potential customers. We could also expect our customer to buy at least two products.
+
+Lastly, this data does not show the whole picture. While we could get an insight which items are most likely to sell among customers, we don't have any information regarding the selling price of those said products, and how much revenue stream we could get from selling those
+products. It is possible that some of the least sold items may bring a considerable revenue if they have a higher price margin even if they are sold less, however there is a lack of data to support this statement.
