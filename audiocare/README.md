@@ -4,7 +4,9 @@ author: "Calvin de Wilde (Sidjaya)"
 date: "11/22/2020"
 output: "github_document"
 ---
-note: Please see the schema [here](https://docs.oracle.com/cd/E11882_01/server.112/e10831/diagrams.htm#COMSC00016). Yes, the files are samples from Oracle database. 
+note: Please see the schema [here](https://docs.oracle.com/cd/E11882_01/server.112/e10831/diagrams.htm#COMSC00016). 
+
+Yes, the files are samples from Oracle database. 
 
 ```{r setup, include=FALSE}
 library(tidyverse)
